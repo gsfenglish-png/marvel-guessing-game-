@@ -1,127 +1,254 @@
 import streamlit as st
 import random
+import time
 
-# A list of popular Marvel characters and their hints
-# The hints are deliberately simple to make the game challenging but not impossible
+# Dictionary of Marvel characters and their hints
+# The hints are structured to be revealed progressively.
 MARVEL_CHARACTERS = {
     "Iron Man": {
-        "hint_1": "He is a genius, billionaire, playboy, philanthropist.",
-        "hint_2": "He is known for his advanced suits of armor.",
-        "hint_3": "He is the founder of the Avengers in the MCU."
+        "hints": [
+            "This character is known for their high-tech suits of armor.",
+            "They are a founding member of the Avengers and are incredibly wealthy.",
+            "Their alter ego's last name is Stark."
+        ],
+        "category": "Hero"
     },
     "Captain America": {
-        "hint_1": "He was a soldier who was frozen in ice for decades.",
-        "hint_2": "His primary weapon is an indestructible shield.",
-        "hint_3": "His real name is Steve Rogers."
+        "hints": [
+            "This hero was enhanced by a super-soldier serum during World War II.",
+            "Their main weapon is a vibranium shield.",
+            "Their alter ego is Steve Rogers."
+        ],
+        "category": "Hero"
     },
     "Thor": {
-        "hint_1": "He is the God of Thunder.",
-        "hint_2": "He wields a mighty hammer named Mjolnir.",
-        "hint_3": "He is from the realm of Asgard."
+        "hints": [
+            "He is the Asgardian God of Thunder.",
+            "His main weapon is a mystical hammer called Mjolnir.",
+            "He is the son of Odin."
+        ],
+        "category": "Hero"
     },
     "Hulk": {
-        "hint_1": "He is a scientist who turns into a giant green monster.",
-        "hint_2": "His alter ego is Bruce Banner.",
-        "hint_3": "His strength increases with his anger."
+        "hints": [
+            "This character gets stronger the angrier they get.",
+            "Their alter ego is a brilliant scientist named Bruce Banner.",
+            "They are famously big, green, and destructive."
+        ],
+        "category": "Hero"
     },
     "Black Widow": {
-        "hint_1": "She is a highly skilled spy and assassin.",
-        "hint_2": "Her main weapons are a pair of electrified batons.",
-        "hint_3": "Her real name is Natasha Romanoff."
+        "hints": [
+            "She is a highly skilled spy and assassin.",
+            "She was trained in the Red Room program.",
+            "Her alter ego is Natasha Romanoff."
+        ],
+        "category": "Hero"
     },
     "Spider-Man": {
-        "hint_1": "He got his powers from a radioactive spider bite.",
-        "hint_2": "He is a high school student from Queens, New York.",
-        "hint_3": "He has a strong sense of responsibility, often saying 'with great power comes great responsibility'."
-    },
-    "Doctor Strange": {
-        "hint_1": "He was a brilliant but arrogant surgeon.",
-        "hint_2": "He protects Earth from mystical threats.",
-        "hint_3": "He controls the Eye of Agamotto."
-    },
-    "Black Panther": {
-        "hint_1": "He is the king of a technologically advanced African nation.",
-        "hint_2": "His suit is made from Vibranium.",
-        "hint_3": "His home country is Wakanda."
-    },
-    "Captain Marvel": {
-        "hint_1": "She is an Air Force pilot with cosmic powers.",
-        "hint_2": "She can fly and fire powerful energy blasts.",
-        "hint_3": "Her name is Carol Danvers."
+        "hints": [
+            "He gained his powers after being bitten by a radioactive spider.",
+            "His iconic phrase is 'With great power comes great responsibility.'",
+            "His alter ego is Peter Parker."
+        ],
+        "category": "Hero"
     },
     "Thanos": {
-        "hint_1": "He is a powerful warlord from Titan.",
-        "hint_2": "His main goal is to collect all six Infinity Stones.",
-        "hint_3": "He is known for snapping his fingers to wipe out half of all life in the universe."
+        "hints": [
+            "He is a powerful Titan with the goal of balancing the universe.",
+            "He seeks the six Infinity Stones.",
+            "He is known as the 'Mad Titan'."
+        ],
+        "category": "Villain"
+    },
+    "Loki": {
+        "hints": [
+            "He is known as the God of Mischief.",
+            "He is the adopted brother of Thor.",
+            "He is a master of illusion and deception."
+        ],
+        "category": "Villain"
+    },
+    "Magneto": {
+        "hints": [
+            "He is one of the most powerful mutants in the world.",
+            "He has the ability to manipulate magnetic fields.",
+            "He is a long-time friend and adversary of Charles Xavier."
+        ],
+        "category": "Villain"
+    },
+    "Doctor Doom": {
+        "hints": [
+            "He is the ruler of the fictional nation of Latveria.",
+            "He is a genius inventor and sorcerer.",
+            "He is the archenemy of the Fantastic Four."
+        ],
+        "category": "Villain"
     }
 }
 
-# --- Game Functions ---
-
-def new_game():
-    """Resets the game state for a new round."""
-    st.session_state.character = random.choice(list(MARVEL_CHARACTERS.keys()))
-    st.session_state.guesses_left = 3
+# --- Initialize Session State ---
+def initialize_game():
+    """Initializes or resets the game state in Streamlit's session state."""
+    st.session_state.mode = None
     st.session_state.game_over = False
-    st.session_state.message = ""
-    st.session_state.guess_history = []
+    st.session_state.result = None
+    st.session_state.tries = 0
+    st.session_state.user_guess_input = ""
+    st.session_state.computer_guess_input = ""
+    st.session_state.secret_character = ""
+    st.session_state.hint_index = 0
+    st.session_state.user_secret = ""
+    st.session_state.computer_guesses = []
 
-def check_guess():
-    """Checks the user's guess and updates the game state."""
-    if st.session_state.game_over:
+if "mode" not in st.session_state:
+    initialize_game()
+
+def reset_game():
+    """Resets the game and re-initializes all state variables."""
+    initialize_game()
+    st.rerun()
+
+# --- Game Logic Functions ---
+def start_user_guessing_mode():
+    """Starts the game where the user guesses the character."""
+    st.session_state.mode = "user_guesses"
+    st.session_state.game_over = False
+    st.session_state.tries = 0
+    st.session_state.secret_character = random.choice(list(MARVEL_CHARACTERS.keys()))
+    st.session_state.hint_index = 0
+    st.session_state.user_guess_input = ""
+    st.rerun()
+
+def start_computer_guessing_mode():
+    """Starts the game where the computer guesses the character."""
+    st.session_state.mode = "computer_guesses"
+    st.session_state.game_over = False
+    st.session_state.tries = 0
+    st.session_state.computer_guesses = []
+    st.session_state.hint_index = 0
+    st.rerun()
+
+def handle_user_guess():
+    """Handles the user's guess submission."""
+    user_input = st.session_state.user_guess_input.strip()
+    if not user_input:
+        st.warning("Please enter a character name.")
         return
 
-    user_guess = st.session_state.user_input.strip().title()
-
-    if user_guess == st.session_state.character:
-        st.session_state.message = f"Congratulations! You guessed correctly! The character was **{st.session_state.character}**."
+    st.session_state.tries += 1
+    
+    if user_input.lower() == st.session_state.secret_character.lower():
         st.session_state.game_over = True
+        st.session_state.result = "win"
     else:
-        st.session_state.guesses_left -= 1
-        st.session_state.guess_history.append(user_guess)
-        if st.session_state.guesses_left > 0:
-            st.session_state.message = f"Incorrect. You have {st.session_state.guesses_left} guesses left. Try again!"
-        else:
-            st.session_state.message = f"Sorry, you ran out of guesses. The character was **{st.session_state.character}**."
+        if st.session_state.tries >= 15:
             st.session_state.game_over = True
+            st.session_state.result = "loss"
+        elif st.session_state.tries % 5 == 0 and st.session_state.hint_index < 2:
+            st.session_state.hint_index += 1
+        st.error("Wrong guess! Try again.")
 
-# --- Streamlit UI ---
+def handle_computer_guess():
+    """Handles the computer's guess submission."""
+    if st.session_state.game_over:
+        return
+        
+    st.session_state.tries += 1
+    
+    # Simple logic: computer guesses a random character it hasn't guessed yet
+    available_characters = [c for c in MARVEL_CHARACTERS.keys() if c not in st.session_state.computer_guesses]
+    if not available_characters:
+        st.session_state.game_over = True
+        st.session_state.result = "loss"
+        st.warning("The computer ran out of characters to guess!")
+        return
+        
+    computer_guess = random.choice(available_characters)
+    st.session_state.computer_guesses.append(computer_guess)
 
-def main():
-    """Main function to run the Streamlit app."""
-    st.title("Guess the Marvel Character! 💥")
+# --- UI Layout ---
+st.title("Marvel Guessing Game")
 
-    # Initialize session state on the first run
-    if "character" not in st.session_state:
-        new_game()
+if st.session_state.mode is None:
+    st.write("Welcome! Please select a game mode to begin.")
+    st.button("I guess the character", on_click=start_user_guessing_mode)
+    st.button("The computer guesses the character", on_click=start_computer_guessing_mode)
 
-    # Display hints based on remaining guesses
-    st.header("Hints")
-    if st.session_state.guesses_left <= 2:
-        st.info(MARVEL_CHARACTERS[st.session_state.character]["hint_1"])
-    if st.session_state.guesses_left <= 1:
-        st.info(MARVEL_CHARACTERS[st.session_state.character]["hint_2"])
-    if st.session_state.guesses_left == 0 and not st.session_state.game_over:
-        st.info(MARVEL_CHARACTERS[st.session_state.character]["hint_3"])
+elif st.session_state.mode == "user_guesses":
+    st.header("Mode: You Guess")
+    st.write("I'm thinking of a Marvel character. You have 15 tries to guess who it is!")
 
-    # Input and button for guessing
+    if st.session_state.secret_character in MARVEL_CHARACTERS:
+        hints = MARVEL_CHARACTERS[st.session_state.secret_character]["hints"]
+        st.info("Hint: " + hints[st.session_state.hint_index])
+
+    st.write(f"Tries: {st.session_state.tries}/15")
+
     if not st.session_state.game_over:
-        st.text_input(
-            "Who am I?",
-            key="user_input",
-            on_change=check_guess
-        )
-        st.write(st.session_state.message)
-    else:
-        st.success(st.session_state.message)
+        st.text_input("Enter your guess:", key="user_guess_input", on_change=handle_user_guess)
+        if st.session_state.tries > 0:
+            st.write("Incorrect!")
 
-    # Display guess history
-    if st.session_state.guess_history:
-        st.subheader("Your Guesses")
-        st.write(", ".join(st.session_state.guess_history))
+    if st.session_state.game_over:
+        if st.session_state.result == "win":
+            st.balloons()
+            st.success(f"Correct! You guessed it in {st.session_state.tries} tries. The character was {st.session_state.secret_character}!")
+        else:
+            st.error(f"You've run out of tries! The character was {st.session_state.secret_character}.")
+        st.button("Play Again", on_click=reset_game)
 
-    # Button to start a new game
-    st.button("Play Again", on_click=new_game)
+elif st.session_state.mode == "computer_guesses":
+    st.header("Mode: The Computer Guesses")
+    
+    if "user_secret" not in st.session_state or not st.session_state.user_secret:
+        st.session_state.user_secret = st.text_input("First, think of a Marvel character from my list and enter it here:", key="user_secret_input")
+        if st.button("Start Game"):
+            if st.session_state.user_secret.lower() not in [c.lower() for c in MARVEL_CHARACTERS.keys()]:
+                st.warning("Please choose a character from the list: " + ", ".join(MARVEL_CHARACTERS.keys()))
+            else:
+                st.session_state.user_secret = st.session_state.user_secret.strip().capitalize()
+                st.session_state.computer_guesses = []
+                st.session_state.game_over = False
+                st.session_state.tries = 0
+                st.session_state.hint_index = 0
+                st.rerun()
 
-if __name__ == "__main__":
-    main()
+    if st.session_state.user_secret and not st.session_state.game_over:
+        st.write(f"You have chosen **{st.session_state.user_secret}**. Now, I will guess!")
+        
+        st.write(f"Tries: {st.session_state.tries}/15")
+
+        if st.button("Computer makes a guess", on_click=handle_computer_guess):
+            pass  # The on_click handler does the work
+        
+        if st.session_state.computer_guesses:
+            last_guess = st.session_state.computer_guesses[-1]
+            is_correct = (last_guess.lower() == st.session_state.user_secret.lower())
+            
+            st.info(f"The computer's guess is: **{last_guess}**")
+
+            if is_correct:
+                st.session_state.game_over = True
+                st.session_state.result = "win"
+                st.balloons()
+                st.success(f"I got it! I guessed it in {st.session_state.tries} tries.")
+            elif st.session_state.tries >= 15:
+                st.session_state.game_over = True
+                st.session_state.result = "loss"
+                st.error(f"I've failed! You win! My 15 guesses weren't enough.")
+            else:
+                st.error("I was wrong! Please give me a hint to help me out.")
+                # The user provides the hint
+                st.write("You can provide a hint to the computer. For example:")
+                hints_for_character = MARVEL_CHARACTERS.get(st.session_state.user_secret, {"hints": ["No hints available."]})["hints"]
+                if st.session_state.hint_index < len(hints_for_character):
+                    st.write(f"**Hint {st.session_state.hint_index + 1}:** {hints_for_character[st.session_state.hint_index]}")
+                    if st.button("Give me this hint", key=f"hint_{st.session_state.hint_index}"):
+                        st.session_state.hint_index += 1
+                        st.success("Thank you for the hint!")
+
+    if st.session_state.game_over:
+        st.button("Play Again", on_click=reset_game)
+
+st.sidebar.button("Restart Game", on_click=reset_game)
