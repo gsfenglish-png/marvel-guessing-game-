@@ -95,7 +95,6 @@ def initialize_game():
     st.session_state.result = None
     st.session_state.tries = 0
     st.session_state.user_guess_input = ""
-    st.session_state.computer_guess_input = ""
     st.session_state.secret_character = ""
     st.session_state.hint_index = 0
     st.session_state.user_secret = ""
@@ -109,26 +108,13 @@ def reset_game():
     initialize_game()
     st.rerun()
 
+def normalize_string(s):
+    """Removes special characters and whitespace, and converts to lowercase for comparison."""
+    if not isinstance(s, str):
+        return ""
+    return "".join(char for char in s if char.isalnum()).lower()
+
 # --- Game Logic Functions ---
-def start_user_guessing_mode():
-    """Starts the game where the user guesses the character."""
-    st.session_state.mode = "user_guesses"
-    st.session_state.game_over = False
-    st.session_state.tries = 0
-    st.session_state.secret_character = random.choice(list(MARVEL_CHARACTERS.keys()))
-    st.session_state.hint_index = 0
-    st.session_state.user_guess_input = ""
-    st.rerun()
-
-def start_computer_guessing_mode():
-    """Starts the game where the computer guesses the character."""
-    st.session_state.mode = "computer_guesses"
-    st.session_state.game_over = False
-    st.session_state.tries = 0
-    st.session_state.computer_guesses = []
-    st.session_state.hint_index = 0
-    st.rerun()
-
 def handle_user_guess():
     """Handles the user's guess submission."""
     user_input = st.session_state.user_guess_input.strip()
@@ -138,7 +124,11 @@ def handle_user_guess():
 
     st.session_state.tries += 1
     
-    if user_input.lower() == st.session_state.secret_character.lower():
+    # Normalize strings for comparison
+    normalized_user_input = normalize_string(user_input)
+    normalized_secret = normalize_string(st.session_state.secret_character)
+
+    if normalized_user_input == normalized_secret:
         st.session_state.game_over = True
         st.session_state.result = "win"
     else:
@@ -156,7 +146,6 @@ def handle_computer_guess():
         
     st.session_state.tries += 1
     
-    # Simple logic: computer guesses a random character it hasn't guessed yet
     available_characters = [c for c in MARVEL_CHARACTERS.keys() if c not in st.session_state.computer_guesses]
     if not available_characters:
         st.session_state.game_over = True
@@ -166,6 +155,35 @@ def handle_computer_guess():
         
     computer_guess = random.choice(available_characters)
     st.session_state.computer_guesses.append(computer_guess)
+
+    # Check if computer's guess is correct
+    if normalize_string(computer_guess) == normalize_string(st.session_state.user_secret):
+        st.session_state.game_over = True
+        st.session_state.result = "win"
+    elif st.session_state.tries >= 15:
+        st.session_state.game_over = True
+        st.session_state.result = "loss"
+    
+# --- Game Mode Set-up Functions ---
+def start_user_guessing_mode():
+    """Starts the game where the user guesses the character."""
+    st.session_state.mode = "user_guesses"
+    st.session_state.game_over = False
+    st.session_state.tries = 0
+    st.session_state.secret_character = random.choice(list(MARVEL_CHARACTERS.keys()))
+    st.session_state.hint_index = 0
+    st.session_state.user_guess_input = ""
+    st.rerun()
+
+def start_computer_guessing_mode():
+    """Starts the game where the computer guesses the character."""
+    st.session_state.mode = "computer_guesses"
+    st.session_state.game_over = False
+    st.session_state.tries = 0
+    st.session_state.computer_guesses = []
+    st.session_state.hint_index = 0
+    st.session_state.user_secret = ""
+    st.rerun()
 
 # --- UI Layout ---
 st.title("Marvel Guessing Game")
@@ -187,7 +205,7 @@ elif st.session_state.mode == "user_guesses":
 
     if not st.session_state.game_over:
         st.text_input("Enter your guess:", key="user_guess_input", on_change=handle_user_guess)
-        if st.session_state.tries > 0:
+        if st.session_state.tries > 0 and st.session_state.result != "win":
             st.write("Incorrect!")
 
     if st.session_state.game_over:
@@ -204,10 +222,10 @@ elif st.session_state.mode == "computer_guesses":
     if "user_secret" not in st.session_state or not st.session_state.user_secret:
         st.session_state.user_secret = st.text_input("First, think of a Marvel character from my list and enter it here:", key="user_secret_input")
         if st.button("Start Game"):
-            if st.session_state.user_secret.lower() not in [c.lower() for c in MARVEL_CHARACTERS.keys()]:
+            if normalize_string(st.session_state.user_secret) not in [normalize_string(c) for c in MARVEL_CHARACTERS.keys()]:
                 st.warning("Please choose a character from the list: " + ", ".join(MARVEL_CHARACTERS.keys()))
             else:
-                st.session_state.user_secret = st.session_state.user_secret.strip().capitalize()
+                st.session_state.user_secret = st.session_state.user_secret.strip()
                 st.session_state.computer_guesses = []
                 st.session_state.game_over = False
                 st.session_state.tries = 0
@@ -224,7 +242,7 @@ elif st.session_state.mode == "computer_guesses":
         
         if st.session_state.computer_guesses:
             last_guess = st.session_state.computer_guesses[-1]
-            is_correct = (last_guess.lower() == st.session_state.user_secret.lower())
+            is_correct = (normalize_string(last_guess) == normalize_string(st.session_state.user_secret))
             
             st.info(f"The computer's guess is: **{last_guess}**")
 
@@ -239,8 +257,6 @@ elif st.session_state.mode == "computer_guesses":
                 st.error(f"I've failed! You win! My 15 guesses weren't enough.")
             else:
                 st.error("I was wrong! Please give me a hint to help me out.")
-                # The user provides the hint
-                st.write("You can provide a hint to the computer. For example:")
                 hints_for_character = MARVEL_CHARACTERS.get(st.session_state.user_secret, {"hints": ["No hints available."]})["hints"]
                 if st.session_state.hint_index < len(hints_for_character):
                     st.write(f"**Hint {st.session_state.hint_index + 1}:** {hints_for_character[st.session_state.hint_index]}")
